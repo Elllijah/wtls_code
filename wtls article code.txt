@@ -1,0 +1,66 @@
+function [a,b,Sa,Sb,Ro] = linereg_wtls(y,x,Sy,Sx,Syx)
+
+if nargin == 0
+	error('Not enough input arguments.');
+elseif nargin == 1
+	x=1:1:length(y);
+else
+end
+if size(x,1)==1; x=x';end
+if size(y,1)==1; y=y';end
+if size(y,1)<2;
+	error('Not enough points for linear regression.');
+end
+if size(y,1)~=size(x,1);
+	error('x and y should be of the same size.');
+end
+
+u=ones(length(x),1);
+if nargin == 1 || nargin == 2
+	A=[x,u];
+	Xihat=inv(A'*A)*A'*y;
+	a=Xihat(1); b=Xihat(2);
+	SLP=inv(A'*A);
+elseif nargin == 3
+	if isvector(Sy)==1; Sy=diag(Sy);end
+	A=[x,u]; Syi=inv(Sy);
+	Xihat = inv(A'*Syi*A)*A'*Syi*y;
+	a = Xihat(1);b=Xihat(2);
+	SLP=inv(A'*Syi*A);
+elseif nargin == 4 || nargin == 5
+	if isvector(Sy)==1; Sy=diag(Sy);end
+	if isvector(Sx)==1; Sx=diag(Sx);end
+	if nargin == 4
+		Syx = zeros(length(x));
+	else
+		if isvector(Syx)==1; Syx=diag(Syx);end
+	end
+	Sxy=Syx';
+	epsilon=[1;1];
+	counter=0;
+	while(norm(epsilon)>10^-12)
+		if(counter==0)
+			ex=zeros(length(x),1);
+			a0=0; b0=0;
+		end
+		
+			Qi=inv(a0^2*Sx-a0*(Sxy+Syx)+Sy);
+			n11=(x-ex)'*Qi*(x-ex);
+			n22=u'*Qi*u;
+			n12=(x-ex)'*Qi*u;
+			r1=(x-ex)'*Qi*(y-a0*ex);
+			r2=u'*Qi*(y-a0*ex);
+			a=(r1*n22-r2*n12)/(n11*n22-n12^2);
+			b=(r2*n11-r1*n12)/(n11*n22-n12^2);
+			ex=-(a*Sx-Sxy)*Qi*(y-a*x-b);
+			epsilon=[a-a0;b-b0];
+			a0=a; b0=b;
+			counter=counter+1;
+		end
+		SLP=inv([n11,n12;n12 n22]);
+	else
+		error('Too many input arguments.');
+	end
+	Sa=SLP(1,1); Sb=SLP(2,2);
+	Ro=SLP(1,2)./sqrt(Sa*Sb);
+	return
